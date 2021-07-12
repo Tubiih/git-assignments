@@ -1,0 +1,44 @@
+pipeline {
+    agent any
+    stages {
+        stage("Load dockerfile") {
+            steps {
+                git 'https://gist.github.com/798076e2544c9e819b04f5b779842557.git'
+            }
+        }
+        stage("Run tests") {
+            parallel {
+                stage('Test A') {
+                    agent { dockerfile { reuseNode true } }
+                        
+                    
+                    steps {
+                        sh 'robot --nostatusrc -d robot_output -l none -r none -o a.xml -i a .'
+                    }
+                }
+                stage('Test B') {
+                    agent { dockerfile { reuseNode true } }
+                    steps {
+                     catchError(buildResult: 'SUCCESS') {
+                    sh 'robot --nostatusrc -d robot_output -l none -r none -o b.xml -i b .' }
+                    }
+                }
+            }
+        }
+                        stage('Process') {
+                    agent { dockerfile { reuseNode true } }
+                    steps {
+                        catchError {
+                    sh 'rebot --nostatusrc -d rebot_output -o output.xml --merge robot_output/*.xml'
+                        }
+                    }
+                }
+
+    }
+    post {
+        always{
+            robot archiveDirName: 'robot-plugin', logFileName: 'log.html', onlyCritical: false, outputFileName: 'output.xml', outputPath: 'rebot_output', overwriteXAxisLabel: '', reportFileName: 'report.html'
+        }
+    }
+}
+    
